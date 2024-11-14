@@ -5,30 +5,28 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-static struct queue_t ready_queue;
-static struct queue_t run_queue;
+static struct queue_t ready_queue; // case only one queue
+static struct queue_t run_queue; // no need, legacy/outdated code, but still be kept for avoiding bug tracking
 static pthread_mutex_t queue_lock;
 
 #ifdef MLQ_SCHED
-static struct queue_t mlq_ready_queue[MAX_PRIO];
+static struct queue_t mlq_ready_queue[MAX_PRIO]; // each element is a queue, case using multi-level queue
 #endif
 
-int queue_empty(void) {
+bool queue_empty(void) {
 #ifdef MLQ_SCHED
-	unsigned long prio;
-	for (prio = 0; prio < MAX_PRIO; prio++)
+	// case multi-level queue, check if exist any queue is not empty
+	for (unsigned long prio = 0; prio < MAX_PRIO; ++prio)
 		if(!empty(&mlq_ready_queue[prio])) 
-			return -1;
+			return false;
 #endif
 	return (empty(&ready_queue) && empty(&run_queue));
 }
 
 void init_scheduler(void) {
 #ifdef MLQ_SCHED
-    int i ;
-
-	for (i = 0; i < MAX_PRIO; i ++)
-		mlq_ready_queue[i].size = 0;
+	for (unsigned long prio = 0; prio < MAX_PRIO; ++prio)
+		mlq_ready_queue[prio].size = 0;
 #endif
 	ready_queue.size = 0;
 	run_queue.size = 0;
@@ -43,11 +41,23 @@ void init_scheduler(void) {
  *  State representation   prio = 0 .. MAX_PRIO, curr_slot = 0..(MAX_PRIO - prio)
  */
 struct pcb_t * get_mlq_proc(void) {
-	struct pcb_t * proc = NULL;
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 * Remember to use lock to protect the queue.
 	 * */
-	return proc;	
+
+	struct pcb_t * ret_proc = NULL;
+
+	pthread_mutex_lock(&queue_lock);
+
+	for (unsigned long prio = 0; prio < MAX_PRIO; ++prio) {
+		if (!empty(&mlq_ready_queue[prio])) {
+			ret_proc = dequeue(&mlq_ready_queue[prio]);
+			break;
+		}
+	}
+
+	pthread_mutex_unlock(&queue_lock);
+	return ret_proc;
 }
 
 void put_mlq_proc(struct pcb_t * proc) {
@@ -79,6 +89,13 @@ struct pcb_t * get_proc(void) {
 	/*TODO: get a process from [ready_queue].
 	 * Remember to use lock to protect the queue.
 	 * */
+
+	pthread_mutex_lock(&queue_lock);
+	if (!empty(&ready_queue)) {
+		proc = dequeue(&ready_queue);
+	}
+
+	pthread_mutex_unlock(&queue_lock);
 	return proc;
 }
 

@@ -38,6 +38,7 @@ static struct ld_args{
 	unsigned long * prio;
 #endif
 } ld_processes;
+
 int num_processes;
 
 struct cpu_args {
@@ -151,6 +152,7 @@ static void read_config(const char * path) {
 		printf("Cannot find configure file at %s\n", path);
 		exit(1);
 	}
+
 	fscanf(file, "%d %d %d\n", &time_slot, &num_cpus, &num_processes);
 	ld_processes.path = (char**)malloc(sizeof(char*) * num_processes);
 	ld_processes.start_time = (unsigned long*)
@@ -178,7 +180,7 @@ static void read_config(const char * path) {
 	fscanf(file, "%d\n", &memramsz);
 	for(sit = 0; sit < PAGING_MAX_MMSWP; sit++)
 		fscanf(file, "%d", &(memswpsz[sit])); 
-#ifdef MM_PAGIMG_HEAP_GODOWN
+#ifdef MM_PAGING_HEAP_GODOWN
 	fscanf(file, "%d\n", &vmemsz);
 #endif
 
@@ -201,6 +203,9 @@ static void read_config(const char * path) {
 #else
 		fscanf(file, "%lu %s\n", &ld_processes.start_time[i], proc);
 #endif
+		// printf("Start time: %lu\n", ld_processes.start_time[i]);
+		// printf("Process: %s\n", proc);
+		// printf("Priority: %lu\n\n", ld_processes.prio[i]);
 		strcat(ld_processes.path[i], proc);
 	}
 }
@@ -215,6 +220,7 @@ int main(int argc, char * argv[]) {
 	path[0] = '\0';
 	strcat(path, "input/");
 	strcat(path, argv[1]);
+
 	read_config(path);
 
 	pthread_t * cpu = (pthread_t*)malloc(num_cpus * sizeof(pthread_t));
