@@ -38,6 +38,7 @@ static struct ld_args{
 	unsigned long * prio;
 #endif
 } ld_processes;
+
 int num_processes;
 
 struct cpu_args {
@@ -52,30 +53,43 @@ static void * cpu_routine(void * args) {
 	/* Check for new process in ready queue */
 	int time_left = 0;
 	struct pcb_t * proc = NULL;
+	// Addition: slot_of_queue_of_proc is the slot of queue containing the process
+	int slot_of_queue_of_proc = 0;
 	while (1) {
 		/* Check the status of current process */
 		if (proc == NULL) {
 			/* No process is running, the we load new process from
 		 	* ready queue */
-			proc = get_proc();
+			proc = get_proc(&slot_of_queue_of_proc);
 			if (proc == NULL) {
-                           next_slot(timer_id);
-                           continue; /* First load failed. skip dummy load */
-                        }
-		}else if (proc->pc == proc->code->size) {
+				next_slot(timer_id);
+				continue; /* First load failed. skip dummy load */
+			}
+		}else {
+			/* process has finished its job or run out of time slice */
+
+			/* Addition: actual time used by the process in current time slot */
+			int used_time = time_slot - time_left; 
+
+			if (proc->pc == proc->code->size) {
 			/* The porcess has finish it job */
-			printf("\tCPU %d: Processed %2d has finished\n",
-				id ,proc->pid);
+			printf("\tCPU %d: Processed %2d has finished\n", id ,proc->pid);
+			
+			/* Addition: decrease slot of queue containing process */
+			decrease_slot(used_time, proc->prio);
 			free(proc);
-			proc = get_proc();
+			proc = get_proc(&slot_of_queue_of_proc); // Load new process
 			time_left = 0;
 		}else if (time_left == 0) {
 			/* The process has done its job in current time slot */
-			printf("\tCPU %d: Put process %2d to run queue\n",
-				id, proc->pid);
-			put_proc(proc);
-			proc = get_proc();
-		}
+		
+			printf("\tCPU %d: Put process %2d to run queue\n", id, proc->pid);
+			
+			/* Addition: decrease slot of queue containing process */
+			decrease_slot(used_time, proc->prio);
+			put_proc(proc); // Put process back to run queue
+			proc = get_proc(&slot_of_queue_of_proc); // Load new process
+		}}
 		
 		/* Recheck process status after loading new process */
 		if (proc == NULL && done) {
@@ -88,9 +102,12 @@ static void * cpu_routine(void * args) {
 			next_slot(timer_id);
 			continue;
 		}else if (time_left == 0) {
-			printf("\tCPU %d: Dispatched process %2d\n",
-				id, proc->pid);
-			time_left = time_slot;
+			printf("\tCPU %d: Dispatched process %2d\n", id, proc->pid);
+
+			/* Addition: calculate the time left for the process.
+			   In case slot of queue containing process is smaller than time slot,
+			   the process will only run in that slot */
+			time_left = time_slot <= slot_of_queue_of_proc ? time_slot : slot_of_queue_of_proc;
 		}
 		
 		/* Run current process */
@@ -123,9 +140,10 @@ static void * ld_routine(void * args) {
 		}
 #ifdef MM_PAGING
 		proc->mm = malloc(sizeof(struct mm_struct));
-#ifdef MM_PAGING_HEAP_GODOWN
+  #ifdef MM_PAGING_HEAP_GODOWN
 		proc->vmemsz = vmemsz;
-#endif
+  #endif
+		// TODO: init_mm(proc->mm, proc); in mm.c
 		init_mm(proc->mm, proc);
 		proc->mram = mram;
 		proc->mswp = mswp;
@@ -151,10 +169,14 @@ static void read_config(const char * path) {
 		printf("Cannot find configure file at %s\n", path);
 		exit(1);
 	}
+
+	// read time slot, number of CPUs and number of processes
 	fscanf(file, "%d %d %d\n", &time_slot, &num_cpus, &num_processes);
 	ld_processes.path = (char**)malloc(sizeof(char*) * num_processes);
 	ld_processes.start_time = (unsigned long*)
 		malloc(sizeof(unsigned long) * num_processes);
+
+
 #ifdef MM_PAGING
 	int sit;
 #ifdef MM_FIXED_MEMSZ
@@ -168,7 +190,7 @@ static void read_config(const char * path) {
 	for(sit = 1; sit < PAGING_MAX_MMSWP; sit++)
 		memswpsz[sit] = 0;
 #ifdef MM_PAGING_HEAP_GODOWN
-	vmemsz = 0x300000
+	vmemsz = 0x300000;
 #endif
 #else
 	/* Read input config of memory size: MEMRAM and upto 4 MEMSWP (mem swap)
@@ -178,7 +200,7 @@ static void read_config(const char * path) {
 	fscanf(file, "%d\n", &memramsz);
 	for(sit = 0; sit < PAGING_MAX_MMSWP; sit++)
 		fscanf(file, "%d", &(memswpsz[sit])); 
-#ifdef MM_PAGIMG_HEAP_GODOWN
+#ifdef MM_PAGING_HEAP_GODOWN
 	fscanf(file, "%d\n", &vmemsz);
 #endif
 
@@ -190,6 +212,8 @@ static void read_config(const char * path) {
 	ld_processes.prio = (unsigned long*)
 		malloc(sizeof(unsigned long) * num_processes);
 #endif
+
+	// read processes
 	int i;
 	for (i = 0; i < num_processes; i++) {
 		ld_processes.path[i] = (char*)malloc(sizeof(char) * 100);
@@ -197,10 +221,15 @@ static void read_config(const char * path) {
 		strcat(ld_processes.path[i], "input/proc/");
 		char proc[100];
 #ifdef MLQ_SCHED
+		// read process arrival time, process path and priority
 		fscanf(file, "%lu %s %lu\n", &ld_processes.start_time[i], proc, &ld_processes.prio[i]);
 #else
+		// if only one queue, read process arrival time and process path, no have priority
 		fscanf(file, "%lu %s\n", &ld_processes.start_time[i], proc);
 #endif
+		// printf("Start time: %lu\n", ld_processes.start_time[i]);
+		// printf("Process: %s\n", proc);
+		// printf("Priority: %lu\n\n", ld_processes.prio[i]);
 		strcat(ld_processes.path[i], proc);
 	}
 }
@@ -215,6 +244,7 @@ int main(int argc, char * argv[]) {
 	path[0] = '\0';
 	strcat(path, "input/");
 	strcat(path, argv[1]);
+
 	read_config(path);
 
 	pthread_t * cpu = (pthread_t*)malloc(num_cpus * sizeof(pthread_t));

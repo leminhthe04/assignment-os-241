@@ -2,12 +2,16 @@
 #include <stdlib.h>
 #include "queue.h"
 
-bool empty(struct queue_t * q) {
-	return (q->size == 0);
+int empty(struct queue_t * q) {
+        if (q->size == 0)
+                return 1;
+        return 0;
 }
 
-bool full(struct queue_t * q) {
-        return q->size == MAX_QUEUE_SIZE;
+int full(struct queue_t * q) {
+        if (q->size == MAX_QUEUE_SIZE)
+                return 1;
+        return 0;
 }
 
 void enqueue(struct queue_t * q, struct pcb_t * proc) {
@@ -39,5 +43,13 @@ struct pcb_t * dequeue(struct queue_t * q) {
 
         q->size--;
         return ret_proc;
+}
+
+
+void update_slot(struct queue_t * q, int new_val) {
+        if(new_val < 0){
+                new_val = 0;
+        }
+        q->slot = new_val;
 }
 
