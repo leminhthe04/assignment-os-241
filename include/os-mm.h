@@ -1,9 +1,9 @@
 #ifndef OSMM_H
 #define OSMM_H
 
-#define MM_PAGING
-#define PAGING_MAX_MMSWP      4 /* max number of supported swapped space */
-#define PAGING_MAX_SYMTBL_SZ  30
+// #define MM_PAGING
+#define PAGING_MAX_MMSWP 4 /* max number of supported swapped space */
+#define PAGING_MAX_SYMTBL_SZ 30
 
 typedef char BYTE;
 typedef uint32_t addr_t;
@@ -17,7 +17,7 @@ struct pgn_t{
 /*
  *  Memory region struct
  */
-struct vm_rg_struct { // a region
+struct vm_rg_struct {
    int vmaid;
 
    unsigned long rg_start;
@@ -34,23 +34,23 @@ struct vm_area_struct {
    unsigned long vm_start;
    unsigned long vm_end;
 
-   unsigned long sbrk; // actual usable area is limited between vm_start and sbrk
+   unsigned long sbrk;
 /*
  * Derived field
  * unsigned long vm_limit = vm_end - vm_start
  */
    struct mm_struct *vm_mm;
-   struct vm_rg_struct *vm_freerg_list; // free region list
-   struct vm_area_struct *vm_next; // next vm_area_struct
+   struct vm_rg_struct *vm_freerg_list;
+   struct vm_area_struct *vm_next;
 };
 
 /* 
  * Memory management struct
  */
-struct mm_struct { // memory mapping
+struct mm_struct {
    uint32_t *pgd;
 
-   struct vm_area_struct *mmap; // memory map
+   struct vm_area_struct *mmap;
 
    /* Currently we support a fixed number of symbol */
    struct vm_rg_struct symrgtbl[PAGING_MAX_SYMTBL_SZ];

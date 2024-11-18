@@ -6,7 +6,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/os",
-        "args": ["os_0_mlq_paging"],
+        "args": ["os_00_mlq"],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}",
         "environment": [],

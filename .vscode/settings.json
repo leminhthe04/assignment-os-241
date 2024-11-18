@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "loader.h": "c",
+        "mm.h": "c"
+    }
+}

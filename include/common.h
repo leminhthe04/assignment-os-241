@@ -34,14 +34,6 @@ enum ins_opcode_t {
 	WRITE	// Read data from a byte on memory
 };
 
-
-// self define bool type :)))
-typedef enum {
-	false = 0,
-	true = 1
-} bool;
-
-
 /* instructions executed by the CPU */
 struct inst_t {
 	enum ins_opcode_t opcode;
@@ -81,26 +73,20 @@ struct pcb_t {
 	struct code_seg_t * code;	// Code segment
 	addr_t regs[10]; // Registers, store address of allocated regions
 	uint32_t pc; // Program pointer, point to the next instruction
-
-
 #ifdef MLQ_SCHED
 	// Priority on execution (if supported), on-fly aka. changeable
 	// and this vale overwrites the default priority when it existed
 	uint32_t prio;     
 #endif
-
 #ifdef MM_PAGING
 	struct mm_struct *mm;
 	struct memphy_struct *mram;
 	struct memphy_struct **mswp;
 	struct memphy_struct *active_mswp;
-	
 #ifdef MM_PAGING_HEAP_GODOWN
 	uint32_t vmemsz;
 #endif
 #endif
-
-
 	struct page_table_t * page_table; // Page table
 	uint32_t bp;	// Break pointer
 
