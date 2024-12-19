@@ -3,7 +3,7 @@
 
 #define MLQ_SCHED 
 #define MAX_PRIO    140
-//5
+// 7
 
 // #define MM_PAGING
 //#define MM_PAGING_HEAP_GODOWN
